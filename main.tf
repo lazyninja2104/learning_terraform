@@ -1,17 +1,14 @@
 data "aws_ami" "app_ami" {
   most_recent = true
-
+  owners      = ["amazon"]
   filter {
     name   = "name"
-    values = ["bitnami-tomcat-*-x86_64-hvm-ebs-nami"]
+    values = ["al2023-ami-*-x86_64"]
   }
-
   filter {
     name   = "virtualization-type"
     values = ["hvm"]
   }
-
-  owners = ["979382823631"] # Bitnami
 }
 
 data "aws_vpc" "default" {
@@ -21,6 +18,12 @@ data "aws_vpc" "default" {
 resource "aws_instance" "blog" {
   ami                    = data.aws_ami.app_ami.id
   instance_type          = var.instance_type
+  user_data = <<-EOF
+              #!/bin/bash
+              dnf install -y java-17-amazon-corretto tomcat9
+              systemctl enable tomcat9
+              systemctl start tomcat9
+              EOF
   vpc_security_group_ids = [aws_security_group.blog.id]
 
   tags = {
@@ -30,6 +33,7 @@ resource "aws_instance" "blog" {
 
 resource "aws_security_group" "blog" {
   name = "blog"
+  description = "Allow http and https in. Allow everything out"
   tags = {
     Terraform = "true"
   }
@@ -37,7 +41,7 @@ resource "aws_security_group" "blog" {
 }
 
 resource "aws_security_group_rule" "blog_http_in" {
-  type        = "ingress"
+  type        = "ingress" //inbound
   from_port   = 80
   to_port     = 80
   protocol    = "tcp"
